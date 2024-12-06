@@ -197,10 +197,10 @@ impl Puzzle for Day3 {
 
     fn solve(&self, input: &str) {
         let ans1 = self.part1(&input);
-        println!("Answer of Day 2 Part 1:  {:#?}", ans1);
+        println!("Answer of Day 3 Part 1:  {:#?}", ans1);
 
         let ans2 = self.part2(&input);
-        println!("Answer of Day 2 Part 2:  {:#?}", ans2);
+        println!("Answer of Day 3 Part 2:  {:#?}", ans2);
     }
 }
 
