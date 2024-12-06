@@ -1,5 +1,11 @@
 use aoc2024::puzzles::*;
 use clap::{Parser, Subcommand};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client,
+};
+use std::io::prelude::*;
+use std::{error::Error, fs::File};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -10,17 +16,53 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Day1,
-    Day2,
+    Day { day: i32 },
 }
 
-fn main() {
+async fn get_input(day: i32) -> Result<String, Box<dyn Error>> {
+    let url = format!("https://adventofcode.com/2024/day/{:?}/input", day);
+    let mut cookies = String::new();
+    File::open(".cookie")?.read_to_string(&mut cookies)?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert("COOKIE", HeaderValue::from_str(&cookies)?);
+    let client = Client::builder().default_headers(headers).build()?;
+
+    let resp = client.get(url).send().await?;
+    assert_eq!(
+        resp.status(),
+        200,
+        "Error getting puzzle import. Message: {:#?}",
+        resp.text().await?
+    );
+
+    Ok(resp.text().await?)
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    let puzzle: Box<dyn Puzzle<Input = String, Output = String>> = match &cli.command {
-        Commands::Day1 => Box::new(day1::Day1),
-        Commands::Day2 => Box::new(day2::Day2),
+    match &cli.command {
+        Commands::Day { day } => {
+            let data = get_input(day.clone()).await?;
+
+            match day {
+                1 => {
+                    let puzzle = day1::Day1;
+                    puzzle.solve(&data);
+                }
+                2 => {
+                    let puzzle = day2::Day2;
+                    puzzle.solve(&data);
+                }
+
+                _ => {
+                    println!("Puzzle of day {:#?} not found!", day);
+                }
+            }
+        }
     };
 
-    puzzle.test()
+    Ok(())
 }

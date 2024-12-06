@@ -1,15 +1,13 @@
+use std::fmt::Display;
+
 pub mod day1;
 pub mod day2;
 
 pub trait Puzzle {
-    type Input;
-    type Output;
+    type Output: Display + Eq;
 
-    fn parse(&self, test_case: String) -> Self::Input;
+    fn part1(&self, input: &str) -> Self::Output;
+    fn part2(&self, input: &str) -> Self::Output;
 
-    fn part1(&self, input: String) -> Self::Output;
-    fn part2(&self, input: String) -> Self::Output;
-
-    fn test(&self);
-    fn solve(&self);
+    fn solve(&self, input: &str);
 }
