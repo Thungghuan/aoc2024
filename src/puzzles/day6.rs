@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use super::Puzzle;
 
@@ -62,29 +62,90 @@ impl Day6 {
     }
 
     fn next_pos(
-        self,
+        &self,
         cur_pos: (usize, usize),
-        direction: Direction,
+        direction: &Direction,
         size: (usize, usize),
     ) -> Option<(usize, usize)> {
         let (row, col) = cur_pos;
         let (m, n) = size;
 
-        let pos = match direction {
-            Direction::Up => (row - 1, col),
-            Direction::Down => (row + 1, col),
-            Direction::Left => (row, col - 1),
-            Direction::Right => (row, col + 1),
-        };
+        match direction {
+            Direction::Up => {
+                if row == 0 {
+                    None
+                } else {
+                    Some((row - 1, col))
+                }
+            }
+            Direction::Down => {
+                if row == m - 1 {
+                    None
+                } else {
+                    Some((row + 1, col))
+                }
+            }
+            Direction::Left => {
+                if col == 0 {
+                    None
+                } else {
+                    Some((row, col - 1))
+                }
+            }
+            Direction::Right => {
+                if col == n - 1 {
+                    None
+                } else {
+                    Some((row, col + 1))
+                }
+            }
+        }
+    }
 
-        if pos.0 < 0 || pos.0 > m - 1 || pos.1 < 0 || pos.1 > n - 1 {
-            None
-        } else {
-            Some(pos)
+    fn next_direction(&self, direction: &Direction) -> Direction {
+        match *direction {
+            Direction::Up => Direction::Right,
+            Direction::Right => Direction::Down,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
+        }
+    }
+
+    fn check_guard_loop(
+        &self,
+        cur_pos: (usize, usize),
+        direction: Direction,
+        size: (usize, usize),
+        obstacle_positions: Vec<(usize, usize)>,
+    ) -> bool {
+        let mut cur_pos = cur_pos.clone();
+        let mut direction = direction.clone();
+        let mut visited = HashSet::new();
+
+        loop {
+            match self.next_pos(cur_pos, &direction, size) {
+                Some(pos) => {
+                    if obstacle_positions.contains(&pos) {
+                        direction = self.next_direction(&direction);
+                    } else {
+                        if visited.contains(&(cur_pos, direction.clone())) {
+                            return true;
+                        }
+
+                        visited.insert((cur_pos, direction.clone()));
+                        cur_pos = pos;
+                    }
+                }
+
+                None => {
+                    return false;
+                }
+            }
         }
     }
 }
 
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 enum Direction {
     Up,
     Down,
@@ -93,7 +154,7 @@ enum Direction {
 }
 
 impl Puzzle for Day6 {
-    type Output = Result<i32, String>;
+    type Output = Result<usize, String>;
 
     fn part1(&self, input: &str) -> Self::Output {
         let Input {
@@ -106,19 +167,73 @@ impl Puzzle for Day6 {
         let mut cur_pos = guard_position.clone();
         let mut visited = HashSet::<(usize, usize)>::new();
 
-        Ok(0)
+        visited.insert(cur_pos);
+
+        loop {
+            match self.next_pos(cur_pos, &direction, map_size) {
+                Some(pos) => {
+                    if obstacle_positions.contains(&pos) {
+                        direction = self.next_direction(&direction);
+                    } else {
+                        cur_pos = pos;
+                        visited.insert(pos);
+                    }
+                }
+
+                None => break,
+            }
+        }
+
+        Ok(visited.len())
     }
 
     fn part2(&self, input: &str) -> Self::Output {
-        Ok(0)
+        let Input {
+            map_size,
+            guard_position,
+            obstacle_positions,
+        } = self.parse(input)?;
+
+        let mut direction = Direction::Up;
+        let mut cur_pos = guard_position.clone();
+        let mut path = HashSet::new();
+
+        path.insert(guard_position);
+
+        loop {
+            match self.next_pos(cur_pos, &direction, map_size) {
+                Some(pos) => {
+                    if obstacle_positions.contains(&pos) {
+                        direction = self.next_direction(&direction);
+                    } else {
+                        cur_pos = pos;
+                        path.insert(pos);
+                    }
+                }
+
+                None => break,
+            }
+        }
+
+        path.remove(&guard_position);
+
+        Ok(path
+            .iter()
+            .filter(|&pos| {
+                let mut obstacle_pos = obstacle_positions.clone();
+                obstacle_pos.push(*pos);
+
+                self.check_guard_loop(guard_position, Direction::Up, map_size, obstacle_pos)
+            })
+            .count())
     }
 
     fn solve(&self, input: &str) {
         let ans1 = self.part1(&input);
-        println!("Answer of Day 6 Part 1:  {:#?}", ans1);
+        println!("Answer of Day 6 Part 1:  {:#?}", ans1.unwrap());
 
         let ans2 = self.part2(&input);
-        println!("Answer of Day 6 Part 2:  {:#?}", ans2);
+        println!("Answer of Day 6 Part 2:  {:#?}", ans2.unwrap());
     }
 }
 
@@ -164,12 +279,12 @@ mod tests {
     #[test]
     fn test_puzzle_day6_part1() {
         let puzzle = Day6;
-        assert_eq!(puzzle.part1(&TESTCASE).unwrap(), 0);
+        assert_eq!(puzzle.part1(&TESTCASE).unwrap(), 41);
     }
 
     #[test]
     fn test_puzzle_day6_part2() {
         let puzzle = Day6;
-        assert_eq!(puzzle.part2(&TESTCASE).unwrap(), 0);
+        assert_eq!(puzzle.part2(&TESTCASE).unwrap(), 6);
     }
 }
