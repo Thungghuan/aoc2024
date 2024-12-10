@@ -32,6 +32,19 @@ impl Day7 {
 
         Ok(input)
     }
+
+    fn concatenation(&self, a: i64, b: i64) -> i64 {
+        // 计算 b 的位数
+        let mut b_digits = 0;
+        let mut temp = b;
+        while temp > 0 {
+            b_digits += 1;
+            temp /= 10;
+        }
+
+        // 通过数学计算拼接
+        a * 10_i64.pow(b_digits) + b
+    }
 }
 
 impl Puzzle for Day7 {
@@ -39,21 +52,6 @@ impl Puzzle for Day7 {
 
     fn part1(&self, input: &str) -> Self::Output {
         let equations = self.parse(&input).unwrap();
-
-        let arr: Vec<(i64, Vec<i64>)> = equations
-            .iter()
-            .filter(|(test_value, numbers)| {
-                numbers
-                    .iter()
-                    .skip(1)
-                    .fold(vec![numbers[0]], |acc, e| {
-                        acc.iter().map(|n| vec![n + e, n * e]).flatten().collect()
-                    })
-                    .contains(test_value)
-            })
-            .cloned()
-            .collect();
-        println!("{:?}", arr);
 
         Ok(equations
             .iter()
@@ -71,7 +69,24 @@ impl Puzzle for Day7 {
     }
 
     fn part2(&self, input: &str) -> Self::Output {
-        Ok(0)
+        let equations = self.parse(&input).unwrap();
+
+        Ok(equations
+            .iter()
+            .filter(|(test_value, numbers)| {
+                numbers
+                    .iter()
+                    .skip(1)
+                    .fold(vec![numbers[0]], |acc, e| {
+                        acc.iter()
+                            .map(|n| vec![n + e, n * e, self.concatenation(*n, *e)])
+                            .flatten()
+                            .collect()
+                    })
+                    .contains(test_value)
+            })
+            .map(|(test_value, _)| *test_value)
+            .sum())
     }
 
     fn solve(&self, input: &str) {
@@ -129,6 +144,6 @@ mod tests {
     #[test]
     fn test_puzzle_day7_part2() {
         let puzzle = Day7;
-        assert_eq!(puzzle.part2(&TESTCASE).unwrap(), 0);
+        assert_eq!(puzzle.part2(&TESTCASE).unwrap(), 11387);
     }
 }
