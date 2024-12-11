@@ -76,6 +76,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let puzzle = day7::Day7;
                     puzzle.solve(&data);
                 }
+                8 => {
+                    let puzzle = day8::Day8;
+                    puzzle.solve(&data);
+                }
 
                 _ => {
                     println!("Puzzle of day {:#?} not found!", day);
