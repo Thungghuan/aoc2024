@@ -59,9 +59,9 @@ impl Day14 {
 
     fn init_map(
         &self,
-        robots: Vec<(Position, Velocity)>,
+        robots: &Vec<(Position, Velocity)>,
         map_size: (usize, usize),
-    ) -> (Vec<Vec<i64>>, Vec<(Position, Velocity)>) {
+    ) -> (Vec<Vec<usize>>, Vec<(Position, Velocity)>) {
         let mut map = vec![vec![0; map_size.0]; map_size.1];
         let robots: Vec<(Position, Velocity)> = robots
             .iter()
@@ -71,7 +71,7 @@ impl Day14 {
 
                 let new_position_col = {
                     if col < 0 {
-                        map_size.0 as i64 + (col)
+                        map_size.0 as i64 + col
                     } else if col > map_size.0 as i64 - 1 {
                         col - map_size.0 as i64
                     } else {
@@ -81,7 +81,7 @@ impl Day14 {
 
                 let new_position_row = {
                     if row < 0 {
-                        map_size.1 as i64 + (row)
+                        map_size.1 as i64 + row
                     } else if row > map_size.1 as i64 - 1 {
                         row - map_size.1 as i64
                     } else {
@@ -103,31 +103,25 @@ impl Day14 {
 
     fn move_robot(
         &self,
-        map: &mut Vec<Vec<i64>>,
+        map: &mut Vec<Vec<usize>>,
         position: Position,
         velocity: Velocity,
         map_size: (usize, usize),
+        steps: i64,
     ) -> (Position, Velocity) {
-        let (cols, rows) = map_size;
+        let cols = map_size.0 as i64;
+        let rows = map_size.1 as i64;
 
-        let new_position_col = {
-            if position.0 + velocity.0 < 0 {
-                cols as i64 + (position.0 + velocity.0)
-            } else if position.0 + velocity.0 > cols as i64 - 1 {
-                position.0 + velocity.0 - cols as i64
-            } else {
-                position.0 + velocity.0
-            }
+        let new_position_col = if (position.0 + velocity.0 * steps) % cols < 0 {
+            (position.0 + velocity.0 * steps) % cols + cols
+        } else {
+            (position.0 + velocity.0 * steps) % cols
         };
 
-        let new_position_row = {
-            if position.1 + velocity.1 < 0 {
-                rows as i64 + (position.1 + velocity.1)
-            } else if position.1 + velocity.1 > rows as i64 - 1 {
-                position.1 + velocity.1 - rows as i64
-            } else {
-                position.1 + velocity.1
-            }
+        let new_position_row = if (position.1 + velocity.1 * steps) % rows < 0 {
+            (position.1 + velocity.1 * steps) % rows + rows
+        } else {
+            (position.1 + velocity.1 * steps) % rows
         };
 
         map[position.1 as usize][position.0 as usize] -= 1;
@@ -136,11 +130,16 @@ impl Day14 {
         ((new_position_col, new_position_row), velocity)
     }
 
-    fn _print_map(&self, map: &Vec<Vec<i64>>, map_size: (usize, usize)) {
+    fn print_map(&self, map: &Vec<Vec<usize>>, map_size: (usize, usize)) {
+        print!("\x1B[2J\x1B[H");
+
         for r in 0..map_size.1 {
             let mut row = String::new();
             for c in 0..map_size.0 {
-                row += &format!("{}", map[r][c]);
+                row += match map[r][c] {
+                    0 => ".",
+                    _ => "x",
+                }
             }
 
             println!("{}", row);
@@ -149,23 +148,21 @@ impl Day14 {
 }
 
 impl Puzzle for Day14 {
-    type Output = Result<i64, String>;
+    type Output = Result<usize, String>;
 
     fn part1(&self, input: &str) -> Self::Output {
         let robots = self.parse(input)?;
 
-        let map_size = if cfg!(test) { (11, 7) } else { (103, 101) };
+        let map_size = if cfg!(test) { (11, 7) } else { (101, 103) };
 
-        let (mut map, mut robots) = self.init_map(robots, map_size);
+        let (mut map, mut robots) = self.init_map(&robots, map_size);
 
-        for _ in 0..100 {
-            robots = robots
-                .iter()
-                .map(|(position, velocity)| {
-                    self.move_robot(&mut map, *position, *velocity, map_size)
-                })
-                .collect();
-        }
+        robots = robots
+            .iter()
+            .map(|(position, velocity)| {
+                self.move_robot(&mut map, *position, *velocity, map_size, 100)
+            })
+            .collect();
 
         let col_mid = map_size.0 / 2;
         let row_mid = map_size.1 / 2;
@@ -179,26 +176,26 @@ impl Puzzle for Day14 {
 
         Ok(quadrants
             .map(|[col_range, row_range]| {
-                map.iter()
-                    .enumerate()
-                    .filter(|(row_idx, _)| (row_range.0..row_range.1).contains(row_idx))
-                    .map(|(_, row)| {
-                        row.iter()
-                            .enumerate()
-                            .filter(|(col_idx, _)| (col_range.0..col_range.1).contains(col_idx))
-                            .map(|(_, value)| value)
-                            .sum::<i64>()
+                robots
+                    .iter()
+                    .map(|(pos, _)| pos)
+                    .filter(|&pos| {
+                        (row_range.0..row_range.1).contains(&(pos.1 as usize))
+                            && (col_range.0..col_range.1).contains(&(pos.0 as usize))
                     })
-                    .sum::<i64>()
+                    .count()
             })
             .into_iter()
-            .fold(1, |acc, n| acc * n))
+            .product())
     }
 
     fn part2(&self, input: &str) -> Self::Output {
-        let _machines = self.parse(input)?;
+        let robots = self.parse(input)?;
+        let map_size = if cfg!(test) { (11, 7) } else { (101, 103) };
+        let (mut map, mut robots) = self.init_map(&robots, map_size);
+        let mut steps = 0;
 
-        Ok(0)
+        Ok(steps)
     }
 
     fn solve(&self, input: &str) {
