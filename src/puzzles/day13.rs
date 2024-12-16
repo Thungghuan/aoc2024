@@ -130,7 +130,6 @@ impl Puzzle for Day13 {
     }
 
     fn part2(&self, input: &str) -> Self::Output {
-        let _machines = self.parse(input)?;
         let machines = self.parse(input)?;
 
         Ok(machines
