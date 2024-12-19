@@ -26,11 +26,12 @@ enum Instruction {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Operand {
-    Combo(i8),
-    Literal(i8),
-    Ignore(i8),
+    Combo(i32),
+    Literal(i32),
+    Ignore(i32),
 }
 
+#[derive(Debug)]
 struct Computer {
     register_a: i32,
     register_b: i32,
@@ -38,6 +39,7 @@ struct Computer {
 
     program: Program,
     instruction_pointer: usize,
+    outputs: Vec<i32>,
 }
 
 impl Computer {
@@ -45,21 +47,53 @@ impl Computer {
         if self.instruction_pointer == self.program.len() {
             None
         } else {
+            let instrution = self.program[self.instruction_pointer];
             self.instruction_pointer += 1;
-            Some(self.program[self.instruction_pointer])
+            Some(instrution)
         }
     }
 
     fn execute_instruction(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::ADV(_operand) => (),
-            Instruction::BXL(_operand) => (),
-            Instruction::BST(_operand) => (),
-            Instruction::JNZ(_operand) => (),
-            Instruction::BXC(_operand) => (),
-            Instruction::OUT(_operand) => (),
-            Instruction::BDV(_operand) => (),
-            Instruction::CDV(_operand) => (),
+            Instruction::ADV(Operand::Combo(combo)) => {
+                self.register_a /= 2_i32.pow(self.calc_combo(combo) as u32);
+            }
+            Instruction::BXL(Operand::Literal(literal)) => {
+                self.register_b ^= literal;
+            }
+            Instruction::BST(Operand::Combo(combo)) => {
+                self.register_b = self.calc_combo(combo) % 8;
+            }
+            Instruction::JNZ(Operand::Literal(literal)) => {
+                if self.register_a > 0 {
+                    self.instruction_pointer = literal as usize;
+                } else {
+                    self.instruction_pointer = self.program.len();
+                }
+            }
+            Instruction::BXC(Operand::Ignore(_)) => {
+                self.register_b ^= self.register_c;
+            }
+            Instruction::OUT(Operand::Combo(combo)) => {
+                self.outputs.push(self.calc_combo(combo) % 8);
+            }
+            Instruction::BDV(Operand::Combo(combo)) => {
+                self.register_b /= 2_i32.pow(self.calc_combo(combo) as u32);
+            }
+            Instruction::CDV(Operand::Combo(combo)) => {
+                self.register_c /= 2_i32.pow(self.calc_combo(combo) as u32);
+            }
+            _ => panic!("Invalid instruction!"),
+        }
+    }
+
+    fn calc_combo(&self, combo: i32) -> i32 {
+        match combo {
+            0 | 1 | 2 | 3 => combo,
+            4 => self.register_a,
+            5 => self.register_b,
+            6 => self.register_c,
+            _ => panic!("Invalid combo operand!"),
         }
     }
 }
@@ -74,7 +108,7 @@ mod parser {
             nom::bytes::complete::tag("Program: "),
             nom::multi::separated_list1(
                 nom::bytes::complete::tag(","),
-                nom::character::complete::i8,
+                nom::character::complete::i32,
             ),
         )(input)?;
 
@@ -155,15 +189,25 @@ impl Puzzle for Day17 {
             program,
         } = input;
 
-        let computer = Computer {
+        let mut computer = Computer {
             register_a,
             register_b,
             register_c,
             program,
             instruction_pointer: 0,
+            outputs: Vec::new(),
         };
 
-        Ok("".into())
+        while let Some(instruction) = computer.next_instruection() {
+            computer.execute_instruction(instruction);
+        }
+
+        Ok(computer
+            .outputs
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join(","))
     }
 
     fn part2(&self, input: &str) -> Self::Output {
@@ -207,10 +251,83 @@ Program: 0,1,5,4,3,0";
     }
 
     #[test]
+    fn test_puzzle_day17_computer_execute() {
+        let mut computer = Computer {
+            register_a: 2024,
+            register_b: 0,
+            register_c: 0,
+            program: vec![
+                Instruction::ADV(Operand::Combo(1)),
+                Instruction::OUT(Operand::Combo(4)),
+                Instruction::JNZ(Operand::Literal(0)),
+            ],
+            instruction_pointer: 0,
+            outputs: Vec::new(),
+        };
+
+        while let Some(instruction) = computer.next_instruection() {
+            computer.execute_instruction(instruction);
+        }
+
+        assert_eq!(
+            computer
+                .outputs
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(","),
+            String::from("4,2,5,6,7,7,7,7,3,1,0")
+        );
+    }
+
+    #[test]
+    fn test_puzzle_day17_computer_bxl() {
+        let mut computer = Computer {
+            register_a: 0,
+            register_b: 29,
+            register_c: 0,
+            program: vec![
+                Instruction::BXL(Operand::Literal(7)),
+            ],
+            instruction_pointer: 0,
+            outputs: Vec::new(),
+        };
+
+        while let Some(instruction) = computer.next_instruection() {
+            computer.execute_instruction(instruction);
+        }
+
+        assert_eq!(computer.register_b, 26);
+    }
+
+    #[test]
+    fn test_puzzle_day17_computer_bxc() {
+        let mut computer = Computer {
+            register_a: 0,
+            register_b: 2024,
+            register_c: 43690,
+            program: vec![
+                Instruction::BXC(Operand::Ignore(0)),
+            ],
+            instruction_pointer: 0,
+            outputs: Vec::new(),
+        };
+
+        while let Some(instruction) = computer.next_instruection() {
+            computer.execute_instruction(instruction);
+        }
+
+        assert_eq!(computer.register_b, 44354);
+    }
+
+    #[test]
     fn test_puzzle_day17_part1() {
         let puzzle = Day17;
 
-        assert_eq!(puzzle.part1(&TESTCASE).unwrap(), String::new());
+        assert_eq!(
+            puzzle.part1(&TESTCASE).unwrap(),
+            String::from("4,6,3,5,6,3,5,2,1,0")
+        );
     }
 
     #[test]
