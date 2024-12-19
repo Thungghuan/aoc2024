@@ -2,7 +2,6 @@ use super::Puzzle;
 
 pub struct Day15;
 
-// type Input = (Vec<Position>, Vec<Movement>);
 struct Input {
     map: Map,
     movements: Vec<Movement>,
