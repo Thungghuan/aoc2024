@@ -121,9 +121,7 @@ impl Day16 {
         let mut queue = VecDeque::new();
         queue.push_back((Movement::Left, *start_position, 0));
 
-        while !queue.is_empty() {
-            let (curr_movement, curr_pos, curr_cost) = queue.pop_front().unwrap();
-
+        while let Some((curr_movement, curr_pos, curr_cost)) = queue.pop_front() {
             if cost_map[curr_pos.0][curr_pos.1].1 > curr_cost {
                 cost_map[curr_pos.0][curr_pos.1] = (curr_movement, curr_cost)
             } else {
@@ -160,6 +158,79 @@ impl Day16 {
         }
 
         cost_map
+    }
+
+    fn get_all_min_cost_paths(
+        &self,
+        map: &Map,
+        min_cost: i32,
+        start_position: &Position,
+        end_position: &Position,
+    ) -> Vec<HashSet<Position>> {
+        let mut paths = Vec::new();
+        let mut queue = VecDeque::new();
+        queue.push_back((HashSet::new(), *start_position, Movement::Left, 0));
+
+        let m = map.len();
+        let n = map[0].len();
+
+        while let Some((curr_path, curr_pos, curr_movement, curr_cost)) = queue.pop_front() {
+            if curr_path.contains(&curr_pos) {
+                continue;
+            }
+
+            let mut curr_path = curr_path.clone();
+            curr_path.insert(curr_pos);
+
+            if curr_cost > min_cost {
+                continue;
+            }
+
+            if curr_pos == *end_position {
+                if curr_cost == min_cost {
+                    paths.push(curr_path);
+                }
+                continue;
+            }
+            let curr_row = curr_pos.0 as i32;
+            let curr_col = curr_pos.1 as i32;
+
+            for (next_movement, next_cost) in [
+                (curr_movement, 1),
+                (curr_movement.rotate()[0], 1001),
+                (curr_movement.rotate()[1], 1001),
+            ] {
+                let (dr, dc) = match next_movement {
+                    Movement::Up => (-1, 0),
+                    Movement::Down => (1, 0),
+                    Movement::Left => (0, -1),
+                    Movement::Right => (0, 1),
+                    Movement::Unknown => panic!("Error unknown next movement"),
+                };
+
+                if self.is_out_bound((curr_row + dr, curr_col + dc), (m, n))
+                    || map[(curr_row + dr) as usize][(curr_col + dc) as usize] == 1
+                {
+                    continue;
+                }
+
+                let next_row = (curr_row + dr) as usize;
+                let next_col = (curr_col + dc) as usize;
+
+                if curr_path.contains(&(next_row, next_col)) {
+                    continue;
+                }
+
+                queue.push_back((
+                    curr_path.clone(),
+                    (next_row, next_col),
+                    next_movement,
+                    curr_cost + next_cost,
+                ));
+            }
+        }
+
+        paths
     }
 
     fn _print_map(
@@ -223,8 +294,25 @@ impl Puzzle for Day16 {
     }
 
     fn part2(&self, input: &str) -> Self::Output {
-        let _input = self.parse(input)?;
-        Ok(0)
+        let Input {
+            map,
+            start_position,
+            end_position,
+        } = self.parse(input)?;
+
+        let cost_map = self.generate_cost_map(&map, &start_position);
+        let min_cost = cost_map[end_position.0][end_position.1].1;
+        let min_paths = self.get_all_min_cost_paths(&map, min_cost, &start_position, &end_position);
+
+        println!("{:?}", min_paths);
+
+        Ok(min_paths
+            .iter()
+            .fold(HashSet::new(), |mut all_paths: HashSet<Position>, path| {
+                all_paths.extend(path);
+                all_paths
+            })
+            .len() as i32)
     }
 
     fn solve(&self, input: &str) {
@@ -317,7 +405,7 @@ mod tests {
     fn test_puzzle_day16_part2() {
         let puzzle = Day16;
 
-        assert_eq!(puzzle.part2(&TESTCASE_1).unwrap(), 105);
-        assert_eq!(puzzle.part2(&TESTCASE_2).unwrap(), 9021);
+        assert_eq!(puzzle.part2(&TESTCASE_1).unwrap(), 45);
+        assert_eq!(puzzle.part2(&TESTCASE_2).unwrap(), 64);
     }
 }

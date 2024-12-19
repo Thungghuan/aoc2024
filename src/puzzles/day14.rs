@@ -130,7 +130,7 @@ impl Day14 {
         ((new_position_col, new_position_row), velocity)
     }
 
-    fn print_map(&self, map: &Vec<Vec<usize>>, map_size: (usize, usize)) {
+    fn _print_map(&self, map: &Vec<Vec<usize>>, map_size: (usize, usize)) {
         print!("\x1B[2J\x1B[H");
 
         for r in 0..map_size.1 {
@@ -192,10 +192,10 @@ impl Puzzle for Day14 {
     fn part2(&self, input: &str) -> Self::Output {
         let robots = self.parse(input)?;
         let map_size = if cfg!(test) { (11, 7) } else { (101, 103) };
-        let (mut map, mut robots) = self.init_map(&robots, map_size);
-        let mut steps = 0;
+        let (mut _map, mut _robots) = self.init_map(&robots, map_size);
+        let mut _steps = 0;
 
-        Ok(steps)
+        Ok(_steps)
     }
 
     fn solve(&self, input: &str) {
